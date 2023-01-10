@@ -130,7 +130,7 @@ def main(args):
         forward_time.append(t1 - t0)
         backward_time.append(t2 - t1)
 
-        if epoch % 20 == 0:
+        if epoch % 200 == 0:
             logger.info(f"Epoch {epoch:04d} | Loss {loss:.4f} | Best MRR {best_mrr:.4f} | Best Epoch {best_epoch:05d}")
 #         if (epoch in range(20000, 20005)) or (epoch in range(40000, 40005)) or (epoch in range(50000, 50005)) or (epoch in range(60000, 60005)):
         if epoch % args.evaluate_every == 0:
