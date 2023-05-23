@@ -186,7 +186,7 @@ def perturb_o_and_get_filtered_rank(model, embedding, w, s, r, o, test_size, tri
     num_entities = embedding.shape[0]
     ranks = []
     for idx in range(test_size):
-        if idx % 2000 == 0:
+        if idx % 5000 == 0:
             logger.info("test triplet {} / {}".format(idx, test_size))
         target_s = s[idx]
         target_r = r[idx]
@@ -210,7 +210,7 @@ def perturb_s_and_get_filtered_rank(model, embedding, w, s, r, o, test_size, tri
     num_relations = w.shape[0] // 2
     ranks = []
     for idx in range(test_size):
-        if idx % 2000 == 0:
+        if idx % 5000 == 0:
             logger.info("test triplet {} / {}".format(idx, test_size))
         target_s = s[idx]
         target_r = r[idx]
