@@ -1,5 +1,1 @@
-python link_predict.py --dataset fb15k-237 \
---d-embd 100 --n-layers 2 --n-bases 100 --reg-factor 0.01 \
---dr-input 0.2 --dr-hid1 0.1 --dr-hid2 0.2 --dr-output 0.2 --dr-decoder 0.2 \
---gpu 0 --graph-batch-size 90000 --lr 0.005 --lr-decay 0.95 --lr-step-decay 500 \
---evaluate-every 2000 --n-epochs 100000
+python link_predict.py --dataset fb15k-237 --d-embd 100 --n-layers 2 --n-bases 100 --reg-factor 0.01 --dr-input 0.2 --dr-hid1 0.1 --dr-hid2 0.2 --dr-output 0.2 --dr-decoder 0.2 --gpu 0 --graph-batch-size 90000 --lr 0.005 --lr-decay 0.95 --lr-step-decay 500 --evaluate-every 2000 --n-epochs 100000
