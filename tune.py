@@ -128,11 +128,12 @@ def main(
 ):
 
     config = {
-        'dr_input': tune.uniform(0.04, 0.31),
-        'dr_hid1': tune.uniform(0.04, 0.31),
-        'dr_hid2': tune.uniform(0.04, 0.31),
-        'dr_output': tune.uniform(0.04, 0.31),
-        "dr_decoder": tune.uniform(0.04, 0.31)
+        # 'dr_input': tune.uniform(0.04, 0.31),
+        "dr_input": tune.choice([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35]),
+        'dr_hid1': tune.choice([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35]),
+        'dr_hid2': tune.choice([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35]),
+        'dr_output': tune.choice([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35]),
+        "dr_decoder": tune.choice([0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35])
     }
 
     search_alg = BasicVariantGenerator(
@@ -143,7 +144,7 @@ def main(
             'dr_output': 0.2,
             "dr_decoder": 0.2
         }],
-        max_concurrent=2
+        max_concurrent=3
     )
 
     scheduler = ASHAScheduler(
@@ -299,7 +300,7 @@ if __name__ == '__main__':
     main(
         train_data, valid_data, test_data,
         num_nodes=num_nodes, num_rels=num_rels,
-        num_samples=48, max_num_epochs=13,
+        num_samples=60, max_num_epochs=13,
         log_path=[log_file_path+'-results.log', log_file_path+'-errors.log'],
         # log_path='here',
         conf_args=args
