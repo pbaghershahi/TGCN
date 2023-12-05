@@ -105,7 +105,7 @@ def main(args):
         model.train()
         epoch += 1
         g_edges, node_id, edge_norm, edges = \
-            generate_sampled_graph(train_data, args.graph_batch_size, 0.5, num_rels)
+            generate_sampled_graph(train_data, args.graph_batch_size, 0.5, num_rels, args.n_pos)
 
         g_edges = torch.from_numpy(g_edges)
         node_id = torch.from_numpy(node_id).view(-1, 1).long()
@@ -171,6 +171,8 @@ if __name__ == '__main__':
                         help="L2 regularization factor")
     parser.add_argument("--n-epochs", type=int, default=15000,
                         help="number of minimum training epochs")
+    parser.add_argument("--n-pos", type=int, default=5000,
+                        help="number of minimum positives samples")
     parser.add_argument("--gpu", type=int, default=-1,
                         help="gpu")
     parser.add_argument("--lr", type=float, default=0.01,

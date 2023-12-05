@@ -115,13 +115,13 @@ def sample_edge_uniform(n_triplets, sample_size):
     return np.random.choice(all_edges, sample_size, replace=False)
 
 
-def generate_sampled_graph(triplets, sample_size, split_size, num_rels):
+def generate_sampled_graph(triplets, sample_size, split_size, num_rels, n_positives=5000):
     edges = sample_edge_uniform(len(triplets), sample_size)
     edges = triplets[edges]
     src, rel, dst = edges.transpose()
     uniq_v, edges = np.unique((src, dst), return_inverse=True)
     src, dst = np.reshape(edges, (2, -1))
-    relabeled_edges = np.stack((src, rel, dst)).transpose()[:5000]
+    relabeled_edges = np.stack((src, rel, dst)).transpose()[:n_positives]
     relabeled_edges = np.vstack((relabeled_edges, relabeled_edges[:, [2, 1, 0]]))
     relabeled_edges[relabeled_edges.shape[0] // 2:, 1] += num_rels
     split_size = int(sample_size * split_size)
