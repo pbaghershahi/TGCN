@@ -74,9 +74,7 @@ def train_tgcn(config, train_data, test_data, valid_data, num_nodes, num_rels, c
     while True:
         model.train()
         epoch += 1
-        g_edges, node_id, edge_norm, edges = \
-            generate_sampled_graph(train_data, args.graph_batch_size, 0.5, num_rels)
-
+        g_edges, node_id, edge_norm, edges = generate_sampled_graph(train_data, args.graph_batch_size, 0.5, num_rels, args.n_pos)
         g_edges = torch.from_numpy(g_edges)
         node_id = torch.from_numpy(node_id).view(-1, 1).long()
         edge_norm = torch.from_numpy(edge_norm).float()
@@ -232,6 +230,8 @@ if __name__ == '__main__':
                         help="decay lr every x steps")
     parser.add_argument("--dataset", type=str, required=True,
                         help="dataset to use")
+    parser.add_argument("--n-pos", type=int, default=5000,
+                        help="number of minimum positives samples")
     parser.add_argument("--grad-norm", type=float, default=1.0,
                         help="norm to clip gradient to")
     parser.add_argument("--graph-batch-size", type=int, default=30000,
