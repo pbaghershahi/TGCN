@@ -1,7 +1,7 @@
 import numpy as np
 from collections import OrderedDict
 import os, random, logging, torch
-
+from collections import defaultdict
 
 def setup_logger(
     name,
@@ -162,100 +162,46 @@ def build_test_graph(num_nodes, num_rels, edges):
     return build_graph_from_triplets(num_nodes, num_rels, (src, rel, dst))
 
 
-def filter_o(triplets_to_filter, target_s, target_r, target_o, num_entities):
-    target_s, target_r, target_o = int(target_s), int(target_r), int(target_o)
-    filtered_o = []
-    for o in range(num_entities):
-        if ((target_s, target_r, o) not in triplets_to_filter) or (
-                (target_s, target_r, o) == (target_s, target_r, target_o)):
-            filtered_o.append(o)
-    return torch.LongTensor(filtered_o)
+def get_er_vocab(data):
+    er_vocab = defaultdict(list)
+    # print(type(data), data)
+    for i in range(data.size(0)):
+        er_vocab[(data[i, 0].item(), data[i, 1].item())].append(data[i, 2].item())
+    return er_vocab
 
-
-def filter_s(triplets_to_filter, target_s, target_r, target_o, num_entities):
-    target_s, target_r, target_o = int(target_s), int(target_r), int(target_o)
-    filtered_s = []
-    for s in range(num_entities):
-        if ((s, target_r, target_o) not in triplets_to_filter) or (
-                (s, target_r, target_o) == (target_s, target_r, target_o)):
-            filtered_s.append(s)
-    return torch.LongTensor(filtered_s)
-
-
-def perturb_o_and_get_filtered_rank(model, embedding, w, s, r, o, test_size, triplets_to_filter, logger):
-    num_entities = embedding.shape[0]
+def calc_mrr(model, embedding, er_vocab, data, batch_size, logger):
+    hits = []
     ranks = []
-    for idx in range(test_size):
-        if idx % 5000 == 0:
-            logger.info("test triplet {} / {}".format(idx, test_size))
-        target_s = s[idx]
-        target_r = r[idx]
-        target_o = o[idx]
-        filtered_o = filter_o(triplets_to_filter, target_s, target_r, target_o, num_entities).cuda()
-        filtered_o = filtered_o.cuda()
-        target_o_idx = int((filtered_o == target_o).nonzero())
-        target_s = target_s.repeat(filtered_o.size())[:, None]
-        target_r = target_r.repeat(filtered_o.size())[:, None]
-        filtered_o = filtered_o[:, None]
-        edges = torch.cat((target_s, target_r, filtered_o), dim=1)
-        scores = model.predict(embedding, edges)
-        _, indices = torch.sort(scores, descending=True)
-        rank = int((indices == target_o_idx).nonzero())
-        ranks.append(rank)
-    return torch.LongTensor(ranks)
+    for i in range(10):
+        hits.append([])
+    for i in range(0, len(data), batch_size):
+        batch_edges = data[i:i+batch_size]
+        predictions = model.predict(embedding, batch_edges)
 
+        for j in range(batch_edges.size(0)):
+            filt = er_vocab[(batch_edges[j, 0].item(), batch_edges[j, 1].item())]
+            target_value = predictions[j, batch_edges[j, 2]].item()
+            predictions[j, filt] = 0.0
+            predictions[j, batch_edges[j, 2]] = target_value
+        sort_values, sort_idxs = torch.sort(predictions, dim=1, descending=True)
+        sort_idxs = sort_idxs.cpu().numpy()
+        for j in range(batch_edges.size(0)):
+            rank = np.where(sort_idxs[j]==batch_edges[j, 2].item())[0][0]
+            ranks.append(rank+1)
 
-def perturb_s_and_get_filtered_rank(model, embedding, w, s, r, o, test_size, triplets_to_filter, logger):
-    num_entities = embedding.shape[0]
-    num_relations = w.shape[0] // 2
-    ranks = []
-    for idx in range(test_size):
-        if idx % 5000 == 0:
-            logger.info("test triplet {} / {}".format(idx, test_size))
-        target_s = s[idx]
-        target_r = r[idx]
-        target_o = o[idx]
-        filtered_s = filter_s(triplets_to_filter, target_s, target_r, target_o, num_entities).cuda()
-        inv_target_r = target_r + num_relations
-        filtered_s = filtered_s.cuda()
-        target_s_idx = int((filtered_s == target_s).nonzero())
-        target_o = target_o.repeat(filtered_s.size())[:, None]
-        inv_target_r = inv_target_r.repeat(filtered_s.size())[:, None]
-        filtered_s = filtered_s[:, None]
-        edges = torch.cat((target_o, inv_target_r, filtered_s), dim=1)
-        scores = model.predict(embedding, edges)
-        _, indices = torch.sort(scores, descending=True)
-        rank = int((indices == target_s_idx).nonzero())
-        ranks.append(rank)
-    return torch.LongTensor(ranks)
+            for hits_level in range(10):
+                if rank <= hits_level:
+                    hits[hits_level].append(1.0)
+                else:
+                    hits[hits_level].append(0.0)
 
-
-def calc_filtered_mrr(model, embedding, w, train_triplets, valid_triplets, test_triplets, logger, hits=[]):
-    with torch.no_grad():
-        s = test_triplets[:, 0]
-        r = test_triplets[:, 1]
-        o = test_triplets[:, 2]
-        test_size = test_triplets.shape[0]
-
-        triplets_to_filter = torch.cat([train_triplets, valid_triplets, test_triplets]).tolist()
-        triplets_to_filter = {tuple(triplet) for triplet in triplets_to_filter}
-        logger.info('Perturbing subject...')
-        ranks_s = perturb_s_and_get_filtered_rank(model, embedding, w, s, r, o, test_size, triplets_to_filter, logger)
-        logger.info('Perturbing object...')
-        ranks_o = perturb_o_and_get_filtered_rank(model, embedding, w, s, r, o, test_size, triplets_to_filter, logger)
-
-        ranks = torch.cat([ranks_s, ranks_o])
-        ranks += 1
-
-        mrr = torch.mean(1.0 / ranks.float())
-        logger.info("MRR (filtered): {:.6f}".format(mrr.item()))
-
-        for hit in hits:
-            avg_count = torch.mean((ranks <= hit).float())
-            logger.info("Hits (filtered) @ {}: {:.6f}".format(hit, avg_count.item()))
-    return mrr.item()
-
-
-def calc_mrr(model, embedding, w, train_triplets, valid_triplets, test_triplets, logger, hits=[]):
-    mrr = calc_filtered_mrr(model, embedding, w, train_triplets, valid_triplets, test_triplets, logger, hits)
+    hit10 = np.mean(hits[9])
+    hit3 = np.mean(hits[2])
+    hit1 = np.mean(hits[0])
+    mrr = np.mean(1./np.array(ranks))
+    logger.info('Hits @10: {0}'.format(hit10))
+    logger.info('Hits @3: {0}'.format(hit3))
+    logger.info('Hits @1: {0}'.format(hit1))
+    logger.info('Mean rank: {0}'.format(np.mean(ranks)))
+    logger.info('Mean reciprocal rank: {0}'.format(mrr))
     return mrr

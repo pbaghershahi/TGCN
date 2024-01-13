@@ -1,12 +1,8 @@
 import argparse, time, torch, logging, os
 from datetime import datetime
 from models import LinkPredict
-from utils import (
-    get_main, fix_seed,
-    get_mappings, setup_logger,
-    generate_sampled_graph,
-    build_test_graph, calc_mrr
-)
+from utils import *
+import numpy as np
 from torch.optim.lr_scheduler import ExponentialLR, StepLR
 
 def main(args):
@@ -17,7 +13,7 @@ def main(args):
     model_state_file = './cache/'+exec_name+'.pth'
     logger = setup_logger(name=exec_name, level=logging.INFO, log_file=log_file_path)
     logger.info(args)
-    seed_value = 2411
+    seed_value = 7611
     fix_seed(seed_value, random_lib=True, numpy_lib=True, torch_lib=True)
     # load graph data
     if args.dataset == 'fb15k-237':
@@ -44,7 +40,7 @@ def main(args):
         'valid.txt',
         names2ids,
         rels2ids,
-        add_inverse=False
+        add_inverse=True
     )['triples']
 
     test_data = get_main(
@@ -52,8 +48,9 @@ def main(args):
         'test.txt',
         names2ids,
         rels2ids,
-        add_inverse=False
+        add_inverse=True
     )['triples']
+
 
     num_nodes = len(names2ids.keys())
     num_rels = len(rels2ids.keys())
@@ -68,6 +65,11 @@ def main(args):
     test_node_id = torch.arange(0, num_nodes, dtype=torch.long).view(-1, 1)
     test_g_edges = torch.from_numpy(test_g_edges)
     test_norm = torch.from_numpy(test_norm).float()
+
+    train_reversed = np.vstack((train_data, train_data[:, [2, 1, 0]]))
+    train_reversed[train_reversed.shape[0] // 2:, 1] += num_rels
+    all_triplets = torch.cat((torch.LongTensor(train_reversed), valid_data, test_data), dim=0)
+    ent_rel = get_er_vocab(all_triplets)
 
     model = LinkPredict(
         num_nodes,
@@ -132,14 +134,12 @@ def main(args):
 
         if epoch % 200 == 0:
             logger.info(f"Epoch {epoch:04d} | Loss {loss:.4f} | Best MRR {best_mrr:.4f} | Best Epoch {best_epoch:05d}")
-#         if (epoch in range(20000, 20005)) or (epoch in range(40000, 40005)) or (epoch in range(50000, 50005)) or (epoch in range(60000, 60005)):
         if epoch % args.evaluate_every == 0:
             with torch.no_grad():
                 model.eval()
                 logger.info("start eval")
                 embed = model(test_g_edges.cuda(), test_node_id.cuda(), test_norm.cuda())
-                mrr = calc_mrr(model, embed, model.rel_embed, torch.LongTensor(train_data).cuda(),
-                               valid_data.cuda(), test_data.cuda(), logger, hits=[1, 3, 10])
+                mrr = calc_mrr(model, embed, ent_rel, test_data.cuda(), 256, logger)
                 if best_mrr < mrr:
                     best_mrr = mrr
                     best_epoch = epoch
@@ -194,3 +194,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     main(args)
+

@@ -32,12 +32,12 @@ class TGCNLayer(nn.Module):
         self.normalize_output = normalize_output
         self.cp_decompose = cp_decompose
         self.split_rate = split_rate
-        self.input_dropout = torch.nn.Dropout(dropout_rates['dr_input'])
-        self.hidden_dropout1 = torch.nn.Dropout(dropout_rates['dr_hid1'])
-        self.hidden_dropout2 = torch.nn.Dropout(dropout_rates['dr_hid2'])
+        self.input_dropout = nn.Dropout(dropout_rates['dr_input'])
+        self.hidden_dropout1 = nn.Dropout(dropout_rates['dr_hid1'])
+        self.hidden_dropout2 = nn.Dropout(dropout_rates['dr_hid2'])
         self.output_dropout = nn.Dropout(dropout_rates['dr_output'])
-        self.bn0 = torch.nn.BatchNorm1d(in_feat)
-        self.bn1 = torch.nn.BatchNorm1d(in_feat)
+        self.bn0 = nn.BatchNorm1d(in_feat)
+        self.bn1 = nn.BatchNorm1d(in_feat)
         if normalize_output:
             self.out_bn_norm = nn.BatchNorm1d(out_feat)
         self._init_params()
@@ -51,7 +51,7 @@ class TGCNLayer(nn.Module):
             nn.init.xavier_uniform_(self.W2, gain=nn.init.calculate_gain('relu'))
             nn.init.xavier_uniform_(self.W3, gain=nn.init.calculate_gain('relu'))
         else:
-            self.W = torch.nn.Parameter(torch.Tensor(self.in_feat, self.in_feat, self.in_feat))
+            self.W = nn.Parameter(torch.Tensor(self.in_feat, self.in_feat, self.in_feat))
             nn.init.xavier_uniform_(self.W, gain=nn.init.calculate_gain('relu'))
         if self.bias:
             self.h_bias = nn.Parameter(torch.Tensor(self.out_feat))
@@ -150,10 +150,10 @@ class LinkPredict(nn.Module):
             self.cal_scores = self.distmult_decode
             print('Using distmult decoder')
         else:
-            self.W = torch.nn.Parameter(torch.Tensor(d_embd, d_embd, d_embd))
+            self.W = nn.Parameter(torch.Tensor(d_embd, d_embd, d_embd))
             nn.init.xavier_uniform_(self.W, gain=nn.init.calculate_gain('relu'))
-            self.input_dropout = torch.nn.Dropout(dropout_rates['dr_decoder'])
-            self.bn0 = torch.nn.BatchNorm1d(d_embd)
+            self.input_dropout = nn.Dropout(dropout_rates['dr_decoder'])
+            self.bn0 = nn.BatchNorm1d(d_embd)
             self.cal_scores = self.tucker_decode
             print('Using tucker decoder')
     
@@ -233,13 +233,10 @@ class LinkPredict(nn.Module):
         return loss + self.reg_param * reg_loss
     
     def predict(self, embed, edges):
-        labels = edges[:, 2]
-        edges = edges[0][None, :]
         scores = self.cal_scores(
             embed,
             edges,
             mode='test'
         )
-        scores = scores[:, labels.view(-1)].view(-1)
         scores = torch.sigmoid(scores)
         return scores
