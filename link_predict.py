@@ -157,25 +157,25 @@ if __name__ == '__main__':
                         help="number of weight blocks for each relation")
     parser.add_argument("--n-layers", type=int, default=2,
                         help="number of propagation rounds")
-    parser.add_argument("--dr-input", type=float, default=0.2,
+    parser.add_argument("--dr-input", type=float, default=0.0,
                         help="input dropout probability")
-    parser.add_argument("--dr-hid1", type=float, default=0.3,
+    parser.add_argument("--dr-hid1", type=float, default=0.1,
                         help="first hidden dropout probability")
     parser.add_argument("--dr-hid2", type=float, default=0.2,
                         help="second hidden dropout probability")
     parser.add_argument("--dr-output", type=float, default=0.2,
                         help="output dropout probability")
-    parser.add_argument("--dr-decoder", type=float, default=0.2,
+    parser.add_argument("--dr-decoder", type=float, default=0.3,
                         help="decoder dropout probability")
     parser.add_argument("--reg-factor", type=float, default=0.01,
                         help="L2 regularization factor")
-    parser.add_argument("--n-epochs", type=int, default=15000,
+    parser.add_argument("--n-epochs", type=int, default=60000,
                         help="number of minimum training epochs")
     parser.add_argument("--n-pos", type=int, default=5000,
                         help="number of minimum positives samples")
     parser.add_argument("--gpu", type=int, default=-1,
                         help="gpu")
-    parser.add_argument("--lr", type=float, default=0.01,
+    parser.add_argument("--lr", type=float, default=0.005,
                         help="learning rate")
     parser.add_argument("--lr-decay", type=float, default=0.95,
                         help="learning rate decay rate")
@@ -185,9 +185,9 @@ if __name__ == '__main__':
                         help="dataset to use")
     parser.add_argument("--grad-norm", type=float, default=1.0,
                         help="norm to clip gradient to")
-    parser.add_argument("--graph-batch-size", type=int, default=30000,
+    parser.add_argument("--graph-batch-size", type=int, default=90000,
                         help="number of edges to sample in each iteration")
-    parser.add_argument("--evaluate-every", type=int, default=500,
+    parser.add_argument("--evaluate-every", type=int, default=2000,
                         help="perform evaluation every n epochs")
     parser.add_argument("--decoder", type=str, default="tucker",
                         help="decoder to use (possible options: tucker, distmult)")
