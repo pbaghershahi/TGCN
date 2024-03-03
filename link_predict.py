@@ -134,7 +134,7 @@ def main(args):
 
         if epoch % 200 == 0:
             logger.info(f"Epoch {epoch:04d} | Loss {loss:.4f} | Best MRR {best_mrr:.4f} | Best Epoch {best_epoch:05d}")
-        if epoch % args.evaluate_every == 0:
+        if epoch >= args.evaluate_after == 0:
             with torch.no_grad():
                 model.eval()
                 logger.info("start eval")
@@ -187,7 +187,7 @@ if __name__ == '__main__':
                         help="norm to clip gradient to")
     parser.add_argument("--graph-batch-size", type=int, default=90000,
                         help="number of edges to sample in each iteration")
-    parser.add_argument("--evaluate-every", type=int, default=2000,
+    parser.add_argument("--evaluate-after", type=int, default=60000,
                         help="perform evaluation every n epochs")
     parser.add_argument("--decoder", type=str, default="tucker",
                         help="decoder to use (possible options: tucker, distmult)")
