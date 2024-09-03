@@ -53,7 +53,7 @@ class TGCNLayer(nn.Module):
             nn.init.xavier_uniform_(self.W2, gain=nn.init.calculate_gain('relu'))
             nn.init.xavier_uniform_(self.W3, gain=nn.init.calculate_gain('relu'))
         else:
-            self.W = nn.Parameter(torch.Tensor(dim_r, self.dim_e, self.dim_e))
+            self.W = nn.Parameter(torch.Tensor(self.dim_r, self.dim_e, self.dim_e))
             nn.init.xavier_uniform_(self.W, gain=nn.init.calculate_gain('relu'))
         if self.bias:
             self.h_bias = nn.Parameter(torch.Tensor(self.out_feat))
