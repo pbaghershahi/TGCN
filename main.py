@@ -74,7 +74,8 @@ def main(args):
     model = LinkPredict(
         num_nodes,
         num_rels,
-        args.d_embd,
+        args.dim_e,
+        args.dim_r,
         n_layers=args.n_layers,
         cp_decompose=args.cp,
         n_bases=args.n_bases,
@@ -88,7 +89,8 @@ def main(args):
         },
         decoder=args.decoder
     )
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    exec_name = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay = args.weight_decay)
     scheduler = StepLR(optimizer, step_size=args.lr_step_decay, gamma=args.lr_decay)
 
     use_cuda = args.gpu >= 0 and torch.cuda.is_available()
@@ -134,7 +136,7 @@ def main(args):
 
         if epoch % 200 == 0:
             logger.info(f"Epoch {epoch:04d} | Loss {loss:.4f} | Best MRR {best_mrr:.4f} | Best Epoch {best_epoch:05d}")
-        if epoch >= args.evaluate_after == 0:
+        if epoch >= args.evaluate_after or epoch % 10000 == 0:
             with torch.no_grad():
                 model.eval()
                 logger.info("start eval")
@@ -144,14 +146,27 @@ def main(args):
                     best_mrr = mrr
                     best_epoch = epoch
                     logger.info(f"Epoch {epoch:04d} | Loss {loss:.4f} | Best MRR {best_mrr:.4f} | Best Epoch {best_epoch:05d}")
+                    if epoch >= args.save_after:
+                        model_dir = "./pretrained"
+                        os.makedirs(model_dir, exist_ok=True)
+                        model_path = os.path.join(model_dir, f"Pretrained_{exec_name}.pth")
+                        torch.save(
+                            {
+                                'epoch': epoch,
+                                'model_state_dict': model.state_dict(),
+                            }, model_path
+                        )
+                        logger.info(f"Model saved to: {model_path}")
                 if epoch >= args.n_epochs:
                     break
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='TGCN')
-    parser.add_argument("--d-embd", type=int, default=100,
-                        help="number of hidden units")
+    parser.add_argument("--dim-e", type=int, default=100,
+                        help="dimensionality of entities embedding")
+    parser.add_argument("--dim-r", type=int, default=100,
+                        help="dimensionality of relations embedding")
     parser.add_argument("--cp", action='store_true')
     parser.add_argument("--n-bases", type=int, default=100,
                         help="number of weight blocks for each relation")
@@ -167,7 +182,9 @@ if __name__ == '__main__':
                         help="output dropout probability")
     parser.add_argument("--dr-decoder", type=float, default=0.3,
                         help="decoder dropout probability")
-    parser.add_argument("--reg-factor", type=float, default=0.01,
+    parser.add_argument("--reg-factor", type=float, default=0.00,
+                        help="L2 regularization factor")
+    parser.add_argument("--weight-decay", type=float, default=0.0,
                         help="L2 regularization factor")
     parser.add_argument("--n-epochs", type=int, default=60000,
                         help="number of minimum training epochs")
@@ -188,6 +205,8 @@ if __name__ == '__main__':
     parser.add_argument("--graph-batch-size", type=int, default=90000,
                         help="number of edges to sample in each iteration")
     parser.add_argument("--evaluate-after", type=int, default=60000,
+                        help="perform evaluation every n epochs")
+    parser.add_argument("--save-after", type=int, default=40000,
                         help="perform evaluation every n epochs")
     parser.add_argument("--decoder", type=str, default="tucker",
                         help="decoder to use (possible options: tucker, distmult)")

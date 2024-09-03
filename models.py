@@ -6,7 +6,8 @@ from torch_scatter import scatter
 class TGCNLayer(nn.Module):
     def __init__(
             self,
-            in_feat,
+            dim_e,
+            dim_r,
             out_feat,
             n_bases=-1,
             bias=True,
@@ -23,7 +24,8 @@ class TGCNLayer(nn.Module):
             split_rate=30000
     ):
         super(TGCNLayer, self).__init__()
-        self.in_feat = in_feat
+        self.dim_e = dim_e
+        self.dim_r = dim_r
         self.out_feat = out_feat
         self.n_bases = n_bases
         self.bias = bias
@@ -36,28 +38,28 @@ class TGCNLayer(nn.Module):
         self.hidden_dropout1 = nn.Dropout(dropout_rates['dr_hid1'])
         self.hidden_dropout2 = nn.Dropout(dropout_rates['dr_hid2'])
         self.output_dropout = nn.Dropout(dropout_rates['dr_output'])
-        self.bn0 = nn.BatchNorm1d(in_feat)
-        self.bn1 = nn.BatchNorm1d(in_feat)
+        self.bn0 = nn.BatchNorm1d(dim_e)
+        self.bn1 = nn.BatchNorm1d(dim_e)
         if normalize_output:
             self.out_bn_norm = nn.BatchNorm1d(out_feat)
         self._init_params()
 
     def _init_params(self,):
         if self.cp_decompose:
-            self.W1 = nn.Parameter(torch.Tensor(self.n_bases, self.in_feat, 1))
+            self.W1 = nn.Parameter(torch.Tensor(self.n_bases, self.dim_e, 1))
             self.W2 = nn.Parameter(torch.Tensor(self.n_bases, 1, self.out_feat))
-            self.W3 = nn.Parameter(torch.Tensor(self.in_feat, self.n_bases))
+            self.W3 = nn.Parameter(torch.Tensor(self.dim_e, self.n_bases))
             nn.init.xavier_uniform_(self.W1, gain=nn.init.calculate_gain('relu'))
             nn.init.xavier_uniform_(self.W2, gain=nn.init.calculate_gain('relu'))
             nn.init.xavier_uniform_(self.W3, gain=nn.init.calculate_gain('relu'))
         else:
-            self.W = nn.Parameter(torch.Tensor(self.in_feat, self.in_feat, self.in_feat))
+            self.W = nn.Parameter(torch.Tensor(dim_r, self.dim_e, self.dim_e))
             nn.init.xavier_uniform_(self.W, gain=nn.init.calculate_gain('relu'))
         if self.bias:
             self.h_bias = nn.Parameter(torch.Tensor(self.out_feat))
             nn.init.zeros_(self.h_bias)
         if self.self_loop:
-            self.loop_weight = nn.Parameter(torch.Tensor(self.in_feat, self.out_feat))
+            self.loop_weight = nn.Parameter(torch.Tensor(self.dim_e, self.out_feat))
             nn.init.xavier_uniform_(self.loop_weight,
                                     gain=nn.init.calculate_gain('relu'))
 
@@ -115,7 +117,8 @@ class LinkPredict(nn.Module):
             self,
             num_nodes,
             num_rels,
-            d_embd,
+            dim_e,
+            dim_r,
             n_layers=1,
             cp_decompose=False,
             n_bases=-1,
@@ -124,18 +127,20 @@ class LinkPredict(nn.Module):
             decoder='tucker'
     ):
         super(LinkPredict, self).__init__()
-        self.embedding = nn.Parameter(torch.Tensor(num_nodes, d_embd))
+        self.embedding = nn.Parameter(torch.Tensor(num_nodes, dim_e))
         nn.init.xavier_normal_(self.embedding,
                         gain=nn.init.calculate_gain('relu'))
         self.reg_param = reg_param
         self.num_rels = num_rels
-        self.rel_embed = nn.Parameter(torch.Tensor(2 * num_rels, d_embd))
+        self.rel_embed = nn.Parameter(torch.Tensor(2 * num_rels, dim_r))
+        print("Here in rel initialization!")
         nn.init.xavier_uniform_(self.rel_embed,
                                 gain=nn.init.calculate_gain('relu'))
         self.tgcn = nn.ModuleList([
             TGCNLayer(
-                d_embd,
-                d_embd,
+                dim_e,
+                dim_r,
+                dim_e,
                 n_bases=n_bases,
                 activation=F.relu if i < n_layers - 1 else None,
                 self_loop=True,
@@ -150,10 +155,10 @@ class LinkPredict(nn.Module):
             self.cal_scores = self.distmult_decode
             print('Using distmult decoder')
         else:
-            self.W = nn.Parameter(torch.Tensor(d_embd, d_embd, d_embd))
+            self.W = nn.Parameter(torch.Tensor(dim_r, dim_e, dim_e))
             nn.init.xavier_uniform_(self.W, gain=nn.init.calculate_gain('relu'))
             self.input_dropout = nn.Dropout(dropout_rates['dr_decoder'])
-            self.bn0 = nn.BatchNorm1d(d_embd)
+            self.bn0 = nn.BatchNorm1d(dim_e)
             self.cal_scores = self.tucker_decode
             print('Using tucker decoder')
     
