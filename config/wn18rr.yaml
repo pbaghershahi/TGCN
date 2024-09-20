@@ -1,0 +1,25 @@
+
+dim_e: 100
+dim_r: 125
+cp: false
+n_bases: 100
+n_layers: 2
+dr_input: 0.0
+dr_hid1: 0.0
+dr_hid2: 0.0
+dr_output: 0.3
+dr_decoder: 0.3
+reg_factor: 0.0
+weight_decay: 0.0
+n_epochs: 34010
+n_pos: 5000
+gpu: 0
+lr: 0.001
+lr_decay: 0.95
+lr_step_decay: 500
+dataset: wn18rr
+grad_norm: 1.0
+graph_batch_size: 50000
+evaluate_after: 34000
+save_after: 20000
+decoder: tucker

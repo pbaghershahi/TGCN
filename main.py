@@ -1,20 +1,37 @@
 import argparse, time, torch, logging, os
 from datetime import datetime
 from models import LinkPredict
+import yaml
 from utils import *
 import numpy as np
 from torch.optim.lr_scheduler import ExponentialLR, StepLR
 
 def main(args):
-    exec_name = datetime.today().strftime('%Y-%m-%d-%H-%M')+'-'+args.dataset
+    if args.config_from_file != "":
+        print(f"Reading config from: {args.config_from_file}")
+        with open(args.config_from_file, 'r') as infile:
+            all_args = vars(args)
+            input_args = []
+            for key, value in all_args.items():
+                if value is not None:
+                    input_args.append(key)
+            file_args = yaml.safe_load(infile)
+            args = {key:file_args[key] if (key in file_args and key not in input_args) else value for key, value in all_args.items()}
+            args = argparse.Namespace(**args)
+    else:
+        raise Exception("Provide the path to a config file!")
+    
     os.makedirs('./log', exist_ok=True)
-    os.makedirs('./cache', exist_ok=True)
-    log_file_path = './log/'+exec_name+'.log'
-    model_state_file = './cache/'+exec_name+'.pth'
+    os.makedirs('./config', exist_ok=True)
+    exec_name = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')+'-'+args.dataset
+    log_file_path = "./log/"+exec_name+".log"
     logger = setup_logger(name=exec_name, level=logging.INFO, log_file=log_file_path)
+    logger.info(f"Logging to: {log_file_path}")
     logger.info(args)
+    logger.info("#"*100)
     seed_value = 7611
     fix_seed(seed_value, random_lib=True, numpy_lib=True, torch_lib=True)
+    
     # load graph data
     if args.dataset == 'fb15k-237':
         ds_dir_name = './data/FB15K-237/'
@@ -98,7 +115,6 @@ def main(args):
         torch.cuda.set_device(args.gpu)
         model.cuda()
 
-    model_state_file = 'model_state.pth'
     forward_time = []
     backward_time = []
     epoch = 0
@@ -163,53 +179,31 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='TGCN')
-    parser.add_argument("--dim-e", type=int, default=100,
-                        help="dimensionality of entities embedding")
-    parser.add_argument("--dim-r", type=int, default=100,
-                        help="dimensionality of relations embedding")
+    parser.add_argument("--dim-e", type=int, help="dimensionality of entities embedding")
+    parser.add_argument("--dim-r", type=int, help="dimensionality of relations embedding")
     parser.add_argument("--cp", action='store_true')
-    parser.add_argument("--n-bases", type=int, default=100,
-                        help="number of weight blocks for each relation")
-    parser.add_argument("--n-layers", type=int, default=2,
-                        help="number of propagation rounds")
-    parser.add_argument("--dr-input", type=float, default=0.0,
-                        help="input dropout probability")
-    parser.add_argument("--dr-hid1", type=float, default=0.1,
-                        help="first hidden dropout probability")
-    parser.add_argument("--dr-hid2", type=float, default=0.2,
-                        help="second hidden dropout probability")
-    parser.add_argument("--dr-output", type=float, default=0.2,
-                        help="output dropout probability")
-    parser.add_argument("--dr-decoder", type=float, default=0.3,
-                        help="decoder dropout probability")
-    parser.add_argument("--reg-factor", type=float, default=0.00,
-                        help="L2 regularization factor")
-    parser.add_argument("--weight-decay", type=float, default=0.0,
-                        help="L2 regularization factor")
-    parser.add_argument("--n-epochs", type=int, default=60000,
-                        help="number of minimum training epochs")
-    parser.add_argument("--n-pos", type=int, default=5000,
-                        help="number of minimum positives samples")
-    parser.add_argument("--gpu", type=int, default=-1,
-                        help="gpu")
-    parser.add_argument("--lr", type=float, default=0.005,
-                        help="learning rate")
-    parser.add_argument("--lr-decay", type=float, default=0.95,
-                        help="learning rate decay rate")
-    parser.add_argument("--lr-step-decay", type=int, default=500,
-                        help="decay lr every x steps")
-    parser.add_argument("--dataset", type=str, required=True,
-                        help="dataset to use")
-    parser.add_argument("--grad-norm", type=float, default=1.0,
-                        help="norm to clip gradient to")
-    parser.add_argument("--graph-batch-size", type=int, default=90000,
-                        help="number of edges to sample in each iteration")
-    parser.add_argument("--evaluate-after", type=int, default=60000,
-                        help="perform evaluation every n epochs")
-    parser.add_argument("--save-after", type=int, default=40000,
-                        help="perform evaluation every n epochs")
-    parser.add_argument("--decoder", type=str, default="tucker",
-                        help="decoder to use (possible options: tucker, distmult)")
+    parser.add_argument("--n-bases", type=int, help="number of weight blocks for each relation")
+    parser.add_argument("--n-layers", type=int, help="number of propagation rounds")
+    parser.add_argument("--dr-input", type=float, help="input dropout probability")
+    parser.add_argument("--dr-hid1", type=float, help="first hidden dropout probability")
+    parser.add_argument("--dr-hid2", type=float, help="second hidden dropout probability")
+    parser.add_argument("--dr-output", type=float, help="output dropout probability")
+    parser.add_argument("--dr-decoder", type=float, help="decoder dropout probability")
+    parser.add_argument("--reg-factor", type=float, help="L2 regularization factor")
+    parser.add_argument("--weight-decay", type=float, help="L2 regularization factor")
+    parser.add_argument("--n-epochs", type=int, help="number of minimum training epochs")
+    parser.add_argument("--n-pos", type=int, help="number of minimum positives samples")
+    parser.add_argument("--gpu", type=int, help="gpu")
+    parser.add_argument("--lr", type=float, help="learning rate")
+    parser.add_argument("--lr-decay", type=float, help="learning rate decay rate")
+    parser.add_argument("--lr-step-decay", type=int, help="decay lr every x steps")
+    parser.add_argument("--dataset", type=str, help="dataset to use")
+    parser.add_argument("--grad-norm", type=float, help="norm to clip gradient to")
+    parser.add_argument("--graph-batch-size", type=int, help="number of edges to sample in each iteration")
+    parser.add_argument("--evaluate-after", type=int, help="perform evaluation every n epochs")
+    parser.add_argument("--save-after", type=int, help="perform evaluation every n epochs")
+    parser.add_argument("--decoder", type=str, help="decoder to use (possible options: tucker, distmult)")
+    parser.add_argument("--config-from-file", type=str, required=True, help="decoder to use (possible options: tucker, distmult)")
 
     args = parser.parse_args()
     main(args)
